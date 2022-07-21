@@ -66,4 +66,10 @@ dependencies {
     implementation "com.google.accompanist:accompanist-permissions:0.15.0"
 
     implementation "androidx.compose.runtime:runtime-livedata:1.2.0-rc03"
+
+    def nav_version = "2.5.0"
+
+    implementation "androidx.navigation:navigation-compose:$nav_version"
+
+    implementation "androidx.compose.material:material-icons-extended:$compose_version"
 }

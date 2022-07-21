@@ -7,14 +7,17 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Scaffold
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -24,30 +27,64 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.rememberCameraPositionState
 import fr.hugotiem.citymapper.ui.theme.CityMapperTheme
 import fr.hugotiem.citymapper.viewModel.MapViewModel
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.google.maps.android.compose.*
+import fr.hugotiem.citymapper.view.ResultsComposable
+import fr.hugotiem.citymapper.view.SearchComposable
+import fr.hugotiem.citymapper.viewModel.ResultsViewModel
+import fr.hugotiem.citymapper.viewModel.SearchViewModel
+import kotlinx.coroutines.CoroutineScope
 
 class MainActivity : ComponentActivity() {
 
     lateinit var fusedLocationClient: FusedLocationProviderClient
 
     private val mapViewModel: MapViewModel by viewModels<MapViewModel>()
+    private val searchViewModel: SearchViewModel by viewModels<SearchViewModel>()
+    private val resultsViewModel: ResultsViewModel by viewModels<ResultsViewModel>()
 
+
+    @OptIn(ExperimentalMaterialApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         setContent {
-            CityMapperTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colors.background) {
-                    DefaultPreview(mapViewModel, fusedLocationClient)
+
+            val navController = rememberNavController()
+
+            val modalBottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden)
+            val scope = rememberCoroutineScope()
+
+            NavHost(navController = navController, startDestination = "home") {
+                composable("home") { CityMapperTheme {
+                    // A surface container using the 'background' color from the theme
+                    DefaultPreview(mapViewModel, fusedLocationClient, navController)
+                } }
+                composable("search") { SearchComposable(navController, searchViewModel) }
+                composable(
+                    "results?query={query}",
+                    arguments = listOf(navArgument("userId") { defaultValue = "" })
+                ) {
+
+                    ResultsComposable(navController, resultsViewModel)
                 }
             }
         }
@@ -55,18 +92,19 @@ class MainActivity : ComponentActivity() {
 }
 
 @SuppressLint("MissingPermission")
-@OptIn(ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterialApi::class)
 // @Preview(showBackground = true)
 @Composable
-fun DefaultPreview(mapViewModel: MapViewModel, fusedLocationClient: FusedLocationProviderClient) {
+fun DefaultPreview(
+    mapViewModel: MapViewModel,
+    fusedLocationClient: FusedLocationProviderClient,
+    navController: NavController
+) {
     CityMapperTheme {
-
 
         lateinit var lastLocation: Location
 
         val markers by mapViewModel.markersLiveData.observeAsState()
-
-        //val singapore = LatLng(1.35, 103.87)
 
         val userDefaultLocation = LatLng(0.0, 0.0) // Default location
 
@@ -83,12 +121,34 @@ fun DefaultPreview(mapViewModel: MapViewModel, fusedLocationClient: FusedLocatio
             position = CameraPosition.fromLatLngZoom(userDefaultLocation, 11f)
         }
 
+        val modalBottomSheetState = rememberModalBottomSheetState(
+            initialValue = ModalBottomSheetValue.HalfExpanded
+        )
 
 
-        Scaffold() {
+        ModalBottomSheetLayout(
+            modifier = Modifier.padding(bottom = 100.dp),
+            sheetContent = {
+                Column(
+                    Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(modifier = Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
+                        SimpleTextField(navController)
+                    }
+                }
+            },
+            sheetState = modalBottomSheetState,
+            sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            sheetBackgroundColor = colorResource(id = R.color.app_green),
+        ) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
+                properties = MapProperties(isMyLocationEnabled = true),
+                uiSettings = MapUiSettings(
+                    myLocationButtonEnabled = true
+                ),
                 onMapLoaded = {
                     locationPermissionsState.launchMultiplePermissionRequest()
                     if (locationPermissionsState.allPermissionsGranted) {
@@ -109,12 +169,34 @@ fun DefaultPreview(mapViewModel: MapViewModel, fusedLocationClient: FusedLocatio
 
             }
         }
+
     }
 }
 
 
-class utils {
-    companion object {
-        private const val LOCATION_REQUEST_CODE = 1
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun SimpleTextField(navController: NavController) {
+    var text by remember { mutableStateOf(TextFieldValue("")) }
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable {
+            navController.navigate("search")
+        }
+    ) {
+        val focusManager = LocalFocusManager.current
+
+        Row(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 20.dp)
+            )
+            Text("On va où ?")
+        }
+
+
     }
+
 }
