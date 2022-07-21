@@ -3,23 +3,17 @@ package fr.hugotiem.citymapper
 import android.annotation.SuppressLint
 import android.location.Location
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -32,11 +26,8 @@ import fr.hugotiem.citymapper.viewModel.MapViewModel
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -45,11 +36,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.maps.android.compose.*
+import fr.hugotiem.citymapper.view.DetailsComposable
 import fr.hugotiem.citymapper.view.ResultsComposable
 import fr.hugotiem.citymapper.view.SearchComposable
+import fr.hugotiem.citymapper.viewModel.DetailsViewModel
 import fr.hugotiem.citymapper.viewModel.ResultsViewModel
 import fr.hugotiem.citymapper.viewModel.SearchViewModel
-import kotlinx.coroutines.CoroutineScope
 
 class MainActivity : ComponentActivity() {
 
@@ -58,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private val mapViewModel: MapViewModel by viewModels<MapViewModel>()
     private val searchViewModel: SearchViewModel by viewModels<SearchViewModel>()
     private val resultsViewModel: ResultsViewModel by viewModels<ResultsViewModel>()
+    private val detailsViewModel: DetailsViewModel by viewModels<DetailsViewModel>()
 
 
     @OptIn(ExperimentalMaterialApi::class)
@@ -83,9 +76,9 @@ class MainActivity : ComponentActivity() {
                     "results?query={query}",
                     arguments = listOf(navArgument("userId") { defaultValue = "" })
                 ) {
-
                     ResultsComposable(navController, resultsViewModel)
                 }
+                composable("details?") { DetailsComposable(navController) }
             }
         }
     }
@@ -179,9 +172,11 @@ fun DefaultPreview(
 fun SimpleTextField(navController: NavController) {
     var text by remember { mutableStateOf(TextFieldValue("")) }
     Card(
-        modifier = Modifier.fillMaxWidth().clickable {
-            navController.navigate("search")
-        }
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                navController.navigate("search")
+            }
     ) {
         val focusManager = LocalFocusManager.current
 
