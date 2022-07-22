@@ -114,12 +114,12 @@ fun DefaultPreview(
             position = CameraPosition.fromLatLngZoom(userDefaultLocation, 11f)
         }
 
-        val modalBottomSheetState = rememberModalBottomSheetState(
-            initialValue = ModalBottomSheetValue.HalfExpanded
+        val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
+            bottomSheetState = BottomSheetState(initialValue = BottomSheetValue.Expanded)
         )
 
 
-        ModalBottomSheetLayout(
+        BottomSheetScaffold(
             modifier = Modifier.padding(bottom = 100.dp),
             sheetContent = {
                 Column(
@@ -131,7 +131,8 @@ fun DefaultPreview(
                     }
                 }
             },
-            sheetState = modalBottomSheetState,
+            sheetPeekHeight = 100.dp,
+            scaffoldState = bottomSheetScaffoldState,
             sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             sheetBackgroundColor = colorResource(id = R.color.app_green),
         ) {
