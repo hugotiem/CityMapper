@@ -1,5 +1,7 @@
 package fr.hugotiem.citymapper.view
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -17,14 +20,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import fr.hugotiem.citymapper.R
 import fr.hugotiem.citymapper.model.TransitResult
 import fr.hugotiem.citymapper.viewModel.ResultsViewModel
 import fr.hugotiem.citymapper.viewModel.ScheduleType
+import java.time.Instant
 import java.util.*
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ResultsComposable(navController: NavController, resultsViewModel: ResultsViewModel) {
 
@@ -90,7 +96,9 @@ fun ResultsComposable(navController: NavController, resultsViewModel: ResultsVie
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 20.dp)
+                modifier = Modifier
+                    .padding(start = 20.dp)
+                    .padding(vertical = 20.dp)
             ) {
                 Column(modifier = Modifier
                     .weight(1f)
@@ -105,34 +113,61 @@ fun ResultsComposable(navController: NavController, resultsViewModel: ResultsVie
                     }
                 }
             }
-        }
-    }
-    Text("Suggérés")
-    LazyColumn() {
-        items(listOf<TransitResult>()) { result ->
-            Row(
-                modifier = Modifier.clickable {
-                    // navController.navigate("")
-                }
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp)
             ) {
-                Column() {
-                    LazyRow() {
-                        items(result.steps) {
-                            // Show steps
-                        }
-                    }
+                Text(
+                    text = "Suggérés",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 20.dp)
+                )
+                LazyColumn(
+                    modifier = Modifier.clip(
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                ) {
+                    items(listOf<TransitResult>(
+                        TransitResult(time = 36, price = 1.9, arrivedAt = Date.from(Instant.now()), steps = listOf("steps"))
+                    )) { result ->
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(color = Color.White)
+                                .padding(10.dp)
+                                .clickable {
+                                    navController.navigate("details")
+                                }
+                        ) {
+                            Column() {
+                                LazyRow() {
+                                    items(result.steps) {
+                                        // Show steps
 
-                }
-                Column() {
-                    Row() {
-                        Text(text = result.price.toString())
-                        Text(text = "${result.time.toString()} min")
+                                    }
+                                }
+
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.End
+                            ) {
+                                Row() {
+                                    Text(text = "${String.format("%.2f", result.price)}€")
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(text = "${result.time.toString()}min")
+                                }
+                                val cal: Calendar = Calendar.getInstance()
+                                cal.time = result.arrivedAt
+                                Text(text = "Arrivée: ${cal.get(Calendar.HOUR_OF_DAY)}:${cal.get(Calendar.MINUTE)}")
+                            }
+                        }
+                        
+                        Divider()
                     }
-                    val cal: Calendar = Calendar.getInstance()
-                    cal.time = result.arrivedAt
-                    Text(text = "Arrivée ${cal.get(Calendar.HOUR_OF_DAY)}")
                 }
             }
+
         }
     }
 }

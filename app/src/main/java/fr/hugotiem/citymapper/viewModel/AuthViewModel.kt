@@ -17,4 +17,6 @@ class AuthViewModel: ViewModel() {
         var task = async {}
         task.await()
     }
+
+    fun isConnected(): Boolean = authService.isConnected()
 }

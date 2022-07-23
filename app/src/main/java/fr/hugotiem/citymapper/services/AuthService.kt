@@ -12,11 +12,11 @@ import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.FirebaseAuth
 
 class AuthService {
-    private lateinit var auth: FirebaseAuth
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance();
 
     fun isConnected(): Boolean {
         var currentUser = auth.currentUser
-        return currentUser == null;
+        return currentUser != null;
     }
 }
 
