@@ -130,39 +130,7 @@ fun ResultsComposable(navController: NavController, resultsViewModel: ResultsVie
                     items(listOf<TransitResult>(
                         TransitResult(time = 36, price = 1.9, arrivedAt = Date.from(Instant.now()), steps = listOf("steps"))
                     )) { result ->
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(color = Color.White)
-                                .padding(10.dp)
-                                .clickable {
-                                    navController.navigate("details")
-                                }
-                        ) {
-                            Column() {
-                                LazyRow() {
-                                    items(result.steps) {
-                                        // Show steps
-
-                                    }
-                                }
-
-                            }
-                            Column(
-                                horizontalAlignment = Alignment.End
-                            ) {
-                                Row() {
-                                    Text(text = "${String.format("%.2f", result.price)}€")
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(text = "${result.time.toString()}min")
-                                }
-                                val cal: Calendar = Calendar.getInstance()
-                                cal.time = result.arrivedAt
-                                Text(text = "Arrivée: ${cal.get(Calendar.HOUR_OF_DAY)}:${cal.get(Calendar.MINUTE)}")
-                            }
-                        }
-                        
+                        TransitResultItem(navController = navController, result = result)
                         Divider()
                     }
                 }
@@ -180,6 +148,42 @@ fun ResultsTextField(schedule: String) {
         Row(modifier = Modifier.padding(15.dp)) {
             Text(text = schedule)
             Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
+        }
+    }
+}
+
+@Composable
+fun TransitResultItem(navController: NavController, result: TransitResult) {
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color = Color.White)
+            .padding(10.dp)
+            .clickable {
+                navController.navigate("details")
+            }
+    ) {
+        Column() {
+            LazyRow() {
+                items(result.steps) {
+                    // Show steps
+
+                }
+            }
+
+        }
+        Column(
+            horizontalAlignment = Alignment.End
+        ) {
+            Row() {
+                Text(text = "${String.format("%.2f", result.price)}€")
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(text = "${result.time.toString()}min")
+            }
+            val cal: Calendar = Calendar.getInstance()
+            cal.time = result.arrivedAt
+            Text(text = "Arrivée: ${cal.get(Calendar.HOUR_OF_DAY)}:${cal.get(Calendar.MINUTE)}")
         }
     }
 }
