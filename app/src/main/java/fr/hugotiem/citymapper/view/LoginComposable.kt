@@ -1,5 +1,6 @@
 package fr.hugotiem.citymapper.view
 
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -17,43 +18,25 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.GoogleAuthProvider
+import fr.hugotiem.citymapper.MainActivity
 import fr.hugotiem.citymapper.R
 import fr.hugotiem.citymapper.services.AuthResultContract
 import fr.hugotiem.citymapper.viewModel.AuthViewModel
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(navController: NavController, authViewModel: AuthViewModel) {
+fun LoginScreen(navController: NavController, authViewModel: AuthViewModel, signIn: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     var text by remember { mutableStateOf<String?>(null) }
     val user by authViewModel.userLiveData.observeAsState()
-    val signInRequestCode = 1
-
-    val authResultLauncher =
-        rememberLauncherForActivityResult(contract = AuthResultContract()) { task ->
-            try {
-                val account = task?.getResult(ApiException::class.java)
-                if (account == null) {
-                    text = "Google sign in failed"
-                } else {
-                    coroutineScope.launch {
-                        authViewModel.signIn(
-                            email = account.email,
-                            name = account.displayName,
-                        )
-                    }
-                }
-            } catch (e: ApiException) {
-                text = "Google sign in failed"
-            }
-        }
 
     LoginComposable(
         navController,
         errorText = text,
         onClick = {
             text = null
-            authResultLauncher.launch(signInRequestCode)
+            signIn()
         }
     )
 }
@@ -131,7 +114,8 @@ fun SignInButton(
             Icon(
                 painter = icon,
                 contentDescription = "SignInButton",
-                tint = Color.Unspecified
+                tint = Color.Unspecified,
+                modifier = Modifier.height(50.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
 

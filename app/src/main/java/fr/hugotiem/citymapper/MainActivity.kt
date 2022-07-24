@@ -1,6 +1,7 @@
 package fr.hugotiem.citymapper
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.location.Location
 import android.os.Build
 import android.os.Bundle
@@ -42,7 +43,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.maps.android.compose.*
 import fr.hugotiem.citymapper.view.*
 import fr.hugotiem.citymapper.viewModel.*
@@ -58,15 +65,24 @@ class MainActivity : ComponentActivity() {
     private val resultsViewModel: ResultsViewModel by viewModels<ResultsViewModel>()
     private val detailsViewModel: DetailsViewModel by viewModels<DetailsViewModel>()
 
+    private lateinit var googleSignInClient: GoogleSignInClient
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(ExperimentalMaterialApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Configure Google Sign In
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
+
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        if(authViewModel.isConnected()) {
+        if (authViewModel.isConnected()) {
             initRoute = "home"
         } else {
             initRoute = "login"
@@ -78,12 +94,18 @@ class MainActivity : ComponentActivity() {
 
             val navController = rememberNavController()
 
-            NavHost(navController = navController, startDestination = "home") {
-                composable("login") { LoginScreen(navController, authViewModel) }
-                composable("home") { CityMapperTheme {
-                    // A surface container using the 'background' color from the theme
-                    DefaultPreview(mapViewModel, fusedLocationClient, navController)
-                } }
+            authViewModel.firebaseAuthInit(navController)
+
+            val mainActivity = this
+
+            NavHost(navController = navController, startDestination = initRoute) {
+                composable("login") { LoginScreen(navController, authViewModel) { signIn() } }
+                composable("home") {
+                    CityMapperTheme {
+                        // A surface container using the 'background' color from the theme
+                        DefaultPreview(mapViewModel, fusedLocationClient, navController)
+                    }
+                }
                 composable("account") { MyAccountScreen(navController) }
                 composable("search") { SearchComposable(navController, searchViewModel) }
                 composable(
@@ -96,167 +118,215 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
 
-@SuppressLint("MissingPermission")
-@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterialApi::class)
+    private fun signIn() {
+        val signInIntent = googleSignInClient.signInIntent
+        startActivityForResult(signInIntent, 120)
+    }
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        // Result returned from launching the Intent from Google
+        if (requestCode == 120) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            if (task.isSuccessful) {
+                try {
+                    // Google Sign In was successful,authenticate with Firebase
+                    val account = task.getResult(ApiException::class.java)!!
+                    //Log.d("ACCOUNT", acc)
+                    firebaseAuthWithGoogle(account.idToken!!)
+                }
+                //SignInApi.getSignInIntent(…);
+                catch (e: ApiException) {
+                    // Google Sign In failed,update UI appropriately
+                    Log.w("TAG", "Google sign in failed", e)
+                }
+            } else {
+                Log.w("SignInActivity", task.exception.toString())
+            }
+        }
+        //
+    }
+
+    private fun firebaseAuthWithGoogle(idToken: String) {
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        authViewModel.getAuthInstance().signInWithCredential(credential).addOnCompleteListener(this) { task ->
+
+            if (task.isSuccessful) {
+                // Sign in success,update UI with the signed-in user's information
+                Log.d("TAG", "signInWithCredential:success")
+                val user = authViewModel.getAuthInstance().currentUser
+            } else {
+                // If sign in fails,displayamessage to the user.
+                Log.w("TAG", "signInWithCredential:failure", task.exception)
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterialApi::class)
 // @Preview(showBackground = true)
-@Composable
-fun DefaultPreview(
-    mapViewModel: MapViewModel,
-    fusedLocationClient: FusedLocationProviderClient,
-    navController: NavController
-) {
-    CityMapperTheme {
+    @Composable
+    fun DefaultPreview(
+        mapViewModel: MapViewModel,
+        fusedLocationClient: FusedLocationProviderClient,
+        navController: NavController
+    ) {
+        CityMapperTheme {
 
-        lateinit var lastLocation: Location
+            lateinit var lastLocation: Location
 
-        val markers by mapViewModel.markersLiveData.observeAsState()
+            val markers by mapViewModel.markersLiveData.observeAsState()
 
-        val userDefaultLocation = LatLng(0.0, 0.0) // Default location
+            val userDefaultLocation = LatLng(0.0, 0.0) // Default location
 
-        val locationPermissionsState = rememberMultiplePermissionsState(
-            listOf(
-                android.Manifest.permission.ACCESS_COARSE_LOCATION,
-                android.Manifest.permission.ACCESS_FINE_LOCATION,
+            val locationPermissionsState = rememberMultiplePermissionsState(
+                listOf(
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                )
             )
-        )
 
-        val coroutineScope = rememberCoroutineScope()
+            val coroutineScope = rememberCoroutineScope()
 
-        val cameraPositionState = rememberCameraPositionState {
-            if(locationPermissionsState.allPermissionsGranted) {
-                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                    if (location != null) {
-                        lastLocation = location
-                        val currentLatLng = LatLng(location.latitude, location.longitude)
-                        position = CameraPosition.fromLatLngZoom(currentLatLng, 12f)
-                    }
-                }
-            } else {
-                position = CameraPosition.fromLatLngZoom(userDefaultLocation, 1f)
-            }
-
-
-        }
-
-        val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
-            bottomSheetState = BottomSheetState(initialValue = BottomSheetValue.Expanded)
-        )
-
-        val mapProperties: MutableState<MapProperties> = remember {
-            if(locationPermissionsState.allPermissionsGranted) {
-                mutableStateOf(MapProperties(isMyLocationEnabled = true))
-            } else {
-                mutableStateOf(MapProperties())
-            }
-        }
-
-        BottomSheetScaffold(
-            sheetContent = {
-                Column(
-                    Modifier.fillMaxHeight(.5f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(modifier = Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
-                        SimpleTextField(navController)
-                    }
-                }
-            },
-            sheetPeekHeight = 100.dp,
-            scaffoldState = bottomSheetScaffoldState,
-            sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            sheetBackgroundColor = colorResource(id = R.color.app_green),
-        ) {
-            Box() {
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState,
-                    properties = mapProperties.value, // MapProperties(isMyLocationEnabled = true),
-                    uiSettings = MapUiSettings(myLocationButtonEnabled = false),
-                    onMapLoaded = {
-                        locationPermissionsState.launchMultiplePermissionRequest()
-                        if (locationPermissionsState.allPermissionsGranted) {
-                            mapProperties.value = MapProperties(isMyLocationEnabled = true)
-                            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                                if (location != null) {
-                                    lastLocation = location
-                                    val currentLatLng = LatLng(location.latitude, location.longitude)
-                                    coroutineScope.launch {
-                                        cameraPositionState.animate(
-                                            CameraUpdateFactory.newLatLngZoom(currentLatLng, 12f)
-                                        )
-                                    }
-                                }
-                            }
+            val cameraPositionState = rememberCameraPositionState {
+                if (locationPermissionsState.allPermissionsGranted) {
+                    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                        if (location != null) {
+                            lastLocation = location
+                            val currentLatLng = LatLng(location.latitude, location.longitude)
+                            position = CameraPosition.fromLatLngZoom(currentLatLng, 12f)
                         }
                     }
-                ) {
-
+                } else {
+                    position = CameraPosition.fromLatLngZoom(userDefaultLocation, 1f)
                 }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                    horizontalAlignment = Alignment.End
-                ) {
+
+
+            }
+
+            val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
+                bottomSheetState = BottomSheetState(initialValue = BottomSheetValue.Expanded)
+            )
+
+            val mapProperties: MutableState<MapProperties> = remember {
+                if (locationPermissionsState.allPermissionsGranted) {
+                    mutableStateOf(MapProperties(isMyLocationEnabled = true))
+                } else {
+                    mutableStateOf(MapProperties())
+                }
+            }
+
+            BottomSheetScaffold(
+                sheetContent = {
                     Column(
-                        modifier = Modifier.background(color = Color.White)
+                        Modifier.fillMaxHeight(.5f),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        IconButton(onClick = { navController.navigate("account") }) {
-                            Icon(imageVector = Icons.Filled.AccountCircle, contentDescription = null)
+                        Box(modifier = Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
+                            SimpleTextField(navController)
                         }
-                        if(locationPermissionsState.allPermissionsGranted) {
-                            IconButton(onClick = {
+                    }
+                },
+                sheetPeekHeight = 100.dp,
+                scaffoldState = bottomSheetScaffoldState,
+                sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                sheetBackgroundColor = colorResource(id = R.color.app_green),
+            ) {
+                Box() {
+                    GoogleMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraPositionState = cameraPositionState,
+                        properties = mapProperties.value, // MapProperties(isMyLocationEnabled = true),
+                        uiSettings = MapUiSettings(myLocationButtonEnabled = false),
+                        onMapLoaded = {
+                            locationPermissionsState.launchMultiplePermissionRequest()
+                            if (locationPermissionsState.allPermissionsGranted) {
+                                mapProperties.value = MapProperties(isMyLocationEnabled = true)
                                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                                     if (location != null) {
                                         lastLocation = location
-                                        val currentLatLng = LatLng(location.latitude, location.longitude)
+                                        val currentLatLng =
+                                            LatLng(location.latitude, location.longitude)
                                         coroutineScope.launch {
                                             cameraPositionState.animate(
-                                                CameraUpdateFactory.newLatLngZoom(currentLatLng, 12f)
+                                                CameraUpdateFactory.newLatLngZoom(currentLatLng,
+                                                    12f)
                                             )
                                         }
                                     }
                                 }
-                            }) {
-                                Icon(imageVector = Icons.Filled.MyLocation, contentDescription = null)
+                            }
+                        }
+                    ) {
+
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        Column(
+                            modifier = Modifier.background(color = Color.White)
+                        ) {
+                            IconButton(onClick = { navController.navigate("account") }) {
+                                Icon(imageVector = Icons.Filled.AccountCircle,
+                                    contentDescription = null)
+                            }
+                            if (locationPermissionsState.allPermissionsGranted) {
+                                IconButton(onClick = {
+                                    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                                        if (location != null) {
+                                            lastLocation = location
+                                            val currentLatLng =
+                                                LatLng(location.latitude, location.longitude)
+                                            coroutineScope.launch {
+                                                cameraPositionState.animate(
+                                                    CameraUpdateFactory.newLatLngZoom(currentLatLng,
+                                                        12f)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }) {
+                                    Icon(imageVector = Icons.Filled.MyLocation,
+                                        contentDescription = null)
+                                }
                             }
                         }
                     }
                 }
             }
+
         }
-
     }
-}
 
-
-@OptIn(ExperimentalMaterialApi::class)
-@Composable
-fun SimpleTextField(navController: NavController) {
-    var text by remember { mutableStateOf(TextFieldValue("")) }
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                navController.navigate("search")
-            }
-    ) {
-        val focusManager = LocalFocusManager.current
-
-        Row(
-            modifier = Modifier.padding(20.dp)
+    @OptIn(ExperimentalMaterialApi::class)
+    @Composable
+    fun SimpleTextField(navController: NavController) {
+        var text by remember { mutableStateOf(TextFieldValue("")) }
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    navController.navigate("search")
+                }
         ) {
-            Icon(
-                imageVector = Icons.Filled.Search,
-                contentDescription = null,
-                modifier = Modifier.padding(end = 20.dp)
-            )
-            Text("On va où ?")
+            val focusManager = LocalFocusManager.current
+
+            Row(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 20.dp)
+                )
+                Text("On va où ?")
+            }
         }
-
-
     }
-
 }
