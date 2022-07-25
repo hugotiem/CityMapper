@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -48,9 +49,11 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.libraries.places.api.Places
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.maps.android.compose.*
+import fr.hugotiem.citymapper.model.TravelMode
 import fr.hugotiem.citymapper.view.*
 import fr.hugotiem.citymapper.viewModel.*
 
@@ -72,6 +75,9 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterialApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Places.initialize(this, getString(R.string.GOOGLE_MAP_API_KEY))
+        val placesClient = Places.createClient(this)
 
         // Configure Google Sign In
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -107,11 +113,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 composable("account") { MyAccountScreen(navController) }
-                composable("search") { SearchComposable(navController, searchViewModel) }
-                composable(
-                    "results?query={query}",
-                    arguments = listOf(navArgument("userId") { defaultValue = "" })
-                ) {
+                composable("search") { SearchComposable(navController, searchViewModel, placesClient) }
+                composable("results", ) {
+
+                    val results = navController.previousBackStackEntry?.savedStateHandle?.get<ParcelableSearch>("parameters")
+
+                    var startLatLng = LatLng(results?.startLatLng?.lat ?: 0.0, results?.startLatLng?.long ?: 0.0)
+                    var endLatLng = LatLng(results?.endLatLng?.lat ?: 0.0, results?.endLatLng?.long ?: 0.0)
+
+                    resultsViewModel.initPage(startLatLng, endLatLng, results!!.travelMode, results!!.destinationName)
                     ResultsComposable(navController, resultsViewModel)
                 }
                 composable("details") { DetailsComposable(navController, detailsViewModel) }

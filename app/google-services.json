@@ -7,41 +7,20 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:722807692797:android:4b9581541c036b47688d94",
-        "android_client_info": {
-          "package_name": "com.yog.citymapper"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "722807692797-f8tsqj8rm6hbtropiij7g7ur4ttmdmtl.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAOGkx1Oq7A89_WdoSOT1tqS7sLmVJBmfY"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "722807692797-f8tsqj8rm6hbtropiij7g7ur4ttmdmtl.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
         "mobilesdk_app_id": "1:722807692797:android:bde798065c5d699c688d94",
         "android_client_info": {
           "package_name": "fr.hugotiem.citymapper"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "722807692797-0s1la541ugmqboi2f3f404pirdo9u8si.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "fr.hugotiem.citymapper",
+            "certificate_hash": "c0171a0e61795837995a765b889e16047c5102a8"
+          }
+        },
         {
           "client_id": "722807692797-f8tsqj8rm6hbtropiij7g7ur4ttmdmtl.apps.googleusercontent.com",
           "client_type": 3

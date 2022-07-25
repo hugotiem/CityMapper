@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">City Mapper</string>
+    <string name="GOOGLE_MAP_API_KEY">AIzaSyBMI7Ogm3uxUTYQUUyDZ49tP3f308C1jbc</string>
 </resources>

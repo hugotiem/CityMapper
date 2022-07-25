@@ -3,19 +3,20 @@ package fr.hugotiem.citymapper.providers
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import fr.hugotiem.citymapper.R
+import fr.hugotiem.citymapper.services.ApiService
 import fr.hugotiem.citymapper.services.SearchService
 import fr.hugotiem.citymapper.services.Service
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-object SearchProvider {
+object ApiProvider {
 
     private const val baseUrl: String =
-        "https://maps.googleapis.com/maps/api/place/autocomplete/"
+        "http://192.168.1.40:3000/map/"
 
-    val service: SearchService by lazy {
-        retrofit.create(SearchService::class.java)
+    val service: ApiService by lazy {
+        retrofit.create(ApiService::class.java)
     }
 
     private val gson : Gson by lazy {

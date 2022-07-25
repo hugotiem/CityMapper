@@ -14,6 +14,9 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,12 +24,16 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.google.android.gms.maps.model.LatLng
 import fr.hugotiem.citymapper.R
-import fr.hugotiem.citymapper.model.TransitResult
+import fr.hugotiem.citymapper.model.*
 import fr.hugotiem.citymapper.viewModel.ResultsViewModel
 import fr.hugotiem.citymapper.viewModel.ScheduleType
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.*
 
@@ -34,7 +41,15 @@ import java.util.*
 @Composable
 fun ResultsComposable(navController: NavController, resultsViewModel: ResultsViewModel) {
 
+    val resultsState = resultsViewModel.resultsLiveData.observeAsState()
+
     var type: ScheduleType = ScheduleType.START
+
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        resultsViewModel.searchItineraries()
+    }
 
     Scaffold(
         backgroundColor = colorResource(id = R.color.app_green)
@@ -103,9 +118,9 @@ fun ResultsComposable(navController: NavController, resultsViewModel: ResultsVie
                 Column(modifier = Modifier
                     .weight(1f)
                     .padding(end = 10.dp)) {
-                    ResultsTextField("Départ")
+                    ResultsTextField("Départ", "Localisation acutelle")
                     Spacer(modifier = Modifier.height(10.dp))
-                    ResultsTextField("Arrivée")
+                    ResultsTextField("Arrivée", resultsViewModel.destinationName)
                 }
                 Box () {
                     IconButton(onClick = {  }) {
@@ -122,16 +137,19 @@ fun ResultsComposable(navController: NavController, resultsViewModel: ResultsVie
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 20.dp)
                 )
-                LazyColumn(
-                    modifier = Modifier.clip(
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                ) {
-                    items(listOf<TransitResult>(
-                        TransitResult(time = 36, price = 1.9, arrivedAt = Date.from(Instant.now()), steps = listOf("steps"))
-                    )) { result ->
-                        TransitResultItem(navController = navController, result = result)
-                        Divider()
+
+                //var res = ApiResult(bounds = listOf(LatLng(48.797035, 2.458125)), legs = listOf())
+
+                if(resultsState.value != null) {
+                    LazyColumn(
+                        modifier = Modifier.clip(
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    ) {
+                        items(resultsState.value!!.legs) { result ->
+                            TransitResultItem(navController = navController, result = result)
+                            Divider()
+                        }
                     }
                 }
             }
@@ -141,19 +159,22 @@ fun ResultsComposable(navController: NavController, resultsViewModel: ResultsVie
 }
 
 @Composable
-fun ResultsTextField(schedule: String) {
+fun ResultsTextField(schedule: String, text: String) {
     Card(modifier = Modifier
         .fillMaxWidth()
         .clickable { }) {
         Row(modifier = Modifier.padding(15.dp)) {
             Text(text = schedule)
             Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
+            Spacer(modifier = Modifier.width(20.dp))
+            Text(text = text)
         }
     }
 }
 
+
 @Composable
-fun TransitResultItem(navController: NavController, result: TransitResult) {
+fun TransitResultItem(navController: NavController, result: Leg) {
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier
@@ -164,14 +185,35 @@ fun TransitResultItem(navController: NavController, result: TransitResult) {
                 navController.navigate("details")
             }
     ) {
+
         Column() {
-            LazyRow() {
-                items(result.steps) {
-                    // Show steps
-
+            if(result.travelMode == TravelMode.transit) {
+                LazyRow(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    items(result.steps) { step ->
+                        // Show steps
+                        if(step is TransitStep) {
+                            val detail = step.transitDetail
+                            Box(modifier = Modifier
+                                .padding(4.dp)
+                                .size(40.dp)
+                                .aspectRatio(1f)
+                                .background(Color(android.graphics.Color.parseColor(detail.color)),
+                                    shape = CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = detail.name, color = Color.White,   textAlign = TextAlign.Center)
+                            }
+                        } else {
+                            Icon(imageVector = Icons.Filled.DirectionsWalk, contentDescription = null)
+                        }
+                    }
                 }
+            } else {
+                // display walking icon
+                Icon(imageVector = Icons.Filled.People, contentDescription = null)
             }
-
         }
         Column(
             horizontalAlignment = Alignment.End
@@ -179,11 +221,13 @@ fun TransitResultItem(navController: NavController, result: TransitResult) {
             Row() {
                 Text(text = "${String.format("%.2f", result.price)}€")
                 Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "${result.time.toString()}min")
+                Text(text = "${result.duration.toString()}min")
             }
-            val cal: Calendar = Calendar.getInstance()
-            cal.time = result.arrivedAt
-            Text(text = "Arrivée: ${cal.get(Calendar.HOUR_OF_DAY)}:${cal.get(Calendar.MINUTE)}")
+            //val cal: Calendar = Calendar.getInstance()
+            //cal.time = result.arrivedAt
+            Text(text = "Arrivée: 12:05")//${cal.get(Calendar.HOUR_OF_DAY)}:${cal.get(Calendar.MINUTE)}")
         }
     }
+
+
 }

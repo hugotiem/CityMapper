@@ -1,0 +1,10 @@
+version: '3.4'
+
+services:
+  city-mapper-api:
+    image: drfdev1999/city-mapper-api:1.0.0-rc.4
+    ports:
+      - '3000:3000'
+    environment:
+      - 'API_KEY=AIzaSyBMI7Ogm3uxUTYQUUyDZ49tP3f308C1jbc'
+      - 'NAVITIA_API_KEY=f91ad452-3672-4abe-bf7b-9c76715da59e'

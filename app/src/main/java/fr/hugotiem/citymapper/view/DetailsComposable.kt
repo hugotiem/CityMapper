@@ -27,7 +27,6 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Polyline
 import fr.hugotiem.citymapper.R
-import fr.hugotiem.citymapper.model.TransitResult
 import fr.hugotiem.citymapper.viewModel.DetailsViewModel
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalPermissionsApi::class)

@@ -31,22 +31,34 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
+import com.google.android.libraries.places.api.net.PlacesClient
 import fr.hugotiem.citymapper.R
+import fr.hugotiem.citymapper.model.TravelMode
+import fr.hugotiem.citymapper.viewModel.ParcelableCoordinates
+import fr.hugotiem.citymapper.viewModel.ParcelableSearch
 import fr.hugotiem.citymapper.viewModel.SearchViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 
 
 @Composable
-fun SearchComposable(navController: NavController, searchViewModel: SearchViewModel) {
+fun SearchComposable(navController: NavController, searchViewModel: SearchViewModel, placesClient: PlacesClient) {
 
     val recentsState = searchViewModel.lastSearchLiveData.observeAsState()
     val recents = searchViewModel.historical
+
+    val autocompleteState = searchViewModel.autocompleteLiveData.observeAsState()
+    val autocomplete = autocompleteState.value
+
     val text: MutableState<String> = remember { mutableStateOf("") }
 
     val focusManager = LocalFocusManager.current
 
     val focusRequester = FocusRequester()
 
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         backgroundColor = colorResource(id = R.color.app_green)
@@ -79,6 +91,10 @@ fun SearchComposable(navController: NavController, searchViewModel: SearchViewMo
                         value = text.value,
                         onValueChange = { newText ->
                             text.value = newText
+
+                            coroutineScope.launch {
+                                searchViewModel.getAutocomplete(newText)
+                            }
                         },
                         maxLines = 1,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -116,21 +132,46 @@ fun SearchComposable(navController: NavController, searchViewModel: SearchViewMo
                     ) {
                     LazyColumn(
                     ) {
-                        items(recents) { search ->
-                            Column() {
+                        items(autocomplete ?: listOf()) { value ->
+                            Column(
+
+                                Modifier.clickable {
+                                    val destination = searchViewModel.getLocationFromAddress(navController.context, value.name)
+
+                                    val parameters = ParcelableSearch(
+                                        travelMode = TravelMode.transit,
+                                        startLatLng = ParcelableCoordinates(
+                                            lat = 48.797035,
+                                            long = 2.458125,
+                                        ),
+                                        endLatLng = ParcelableCoordinates(
+                                            lat = destination?.latitude ?: 0.0,
+                                            long = destination?.longitude ?: 0.0,
+                                        ),
+                                        destinationName = value.name
+                                    )
+                                    navController.currentBackStackEntry?.savedStateHandle?.set(
+                                        key = "parameters",
+                                        value = parameters
+                                    )
+
+                                    navController.navigate("results")
+
+                                }
+                            ) {
                                 Row(
                                     modifier = Modifier
                                         .padding(10.dp)
                                         .fillMaxWidth()
-                                        .clickable { },
+                                        ,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
-                                    Text(text = search, modifier = Modifier
+                                    Text(text = value.name, modifier = Modifier
                                         .padding(start = 5.dp)
                                         .fillMaxWidth())
                                 }
-                                if(recents.indexOf(search) != recents.size - 1) {
+                                if(autocomplete!!.indexOf(value) != (autocomplete!!.size - 1)) {
                                     Divider()
                                 }
                             }
@@ -170,7 +211,7 @@ fun SearchComposable(navController: NavController, searchViewModel: SearchViewMo
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
-                                    Text(text = search, modifier = Modifier.padding(start = 5.dp))
+                                    Text(text = search.name, modifier = Modifier.padding(start = 5.dp))
                                 }
                                 if(recents.indexOf(search) != recents.size - 1) {
                                     Divider()
