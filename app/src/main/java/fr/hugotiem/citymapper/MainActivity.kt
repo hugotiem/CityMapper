@@ -124,7 +124,6 @@ class MainActivity : ComponentActivity() {
                     resultsViewModel.initPage(startLatLng, endLatLng, results!!.travelMode, results!!.destinationName)
                     ResultsComposable(navController, resultsViewModel)
                 }
-                composable("details") { DetailsComposable(navController, detailsViewModel) }
             }
         }
     }
@@ -213,8 +212,6 @@ class MainActivity : ComponentActivity() {
                 } else {
                     position = CameraPosition.fromLatLngZoom(userDefaultLocation, 1f)
                 }
-
-
             }
 
             val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(

@@ -2,6 +2,7 @@ package fr.hugotiem.citymapper.model
 
 import android.util.Log
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Polyline
 import org.json.JSONObject
 import java.util.*
 import kotlin.Result
@@ -69,10 +70,19 @@ open class Step(
     val distance: Int? = null,
     val startLatLng: LatLng? = null,
     val endLatLng: LatLng? = null,
+    val polyline: List<LatLng>
 ) {
     companion object {
         fun fromJson(json: Map<String, *>): Step {
-            return Step()
+            return Step(polyline = polylineFactory(json["geoJson"] as List<Map<String, Double>>))
+        }
+
+        fun polylineFactory(list:List<Map<String, Double>>): List<LatLng> {
+            return list.map { item -> latLngFactory(item) }
+        }
+
+        fun latLngFactory(map: Map<String, Double>): LatLng {
+            return LatLng(map["lat"] as Double, map["long"] as Double)
         }
     }
 }
@@ -83,7 +93,8 @@ class TransitStep(
     distance: Int?,
     startLatLng: LatLng?,
     endLatLng: LatLng?,
-): Step(duration, distance, startLatLng, endLatLng) {
+    polyline: List<LatLng>
+): Step(duration, distance, startLatLng, endLatLng, polyline) {
     companion object  {
         fun fromJson(json: Map<String, *>): TransitStep {
 
@@ -95,6 +106,8 @@ class TransitStep(
                 else -> transportType = TransportType.TRAIN
             }
 
+            val polyline = polylineFactory(json["geoJson"] as List<Map<String, Double>>)
+
             return TransitStep(
                 TransitDetail(
                     json["transportName"] as String,
@@ -104,7 +117,8 @@ class TransitStep(
                 duration = (json["duration"] as Double).toInt(),
                 startLatLng = null,
                 endLatLng = null,
-                distance = null
+                distance = null,
+                polyline = polyline
             )
         }
     }

@@ -7,6 +7,7 @@ import com.google.android.datatransport.runtime.Destination
 import com.google.android.gms.maps.model.LatLng
 import com.google.gson.Gson
 import fr.hugotiem.citymapper.model.ApiResult
+import fr.hugotiem.citymapper.model.Leg
 import fr.hugotiem.citymapper.model.TravelMode
 import fr.hugotiem.citymapper.providers.ApiProvider
 import kotlinx.coroutines.coroutineScope
@@ -24,6 +25,7 @@ class ResultsViewModel: ViewModel() {
     lateinit var destinationName: String
 
     val resultsLiveData: MutableLiveData<ApiResult> = MutableLiveData<ApiResult>()
+    val selectedLiveData: MutableLiveData<Leg> = MutableLiveData<Leg>()
 
     fun stringType(type: ScheduleType): String {
         if(type == ScheduleType.START) {

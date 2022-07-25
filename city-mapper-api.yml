@@ -2,7 +2,7 @@ version: '3.4'
 
 services:
   city-mapper-api:
-    image: drfdev1999/city-mapper-api:1.0.0-rc.4
+    image: drfdev1999/city-mapper-api:1.0.0-rc.6
     ports:
       - '3000:3000'
     environment:
