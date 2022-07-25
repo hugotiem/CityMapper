@@ -31,6 +31,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import fr.hugotiem.citymapper.R
@@ -44,7 +45,7 @@ import kotlinx.coroutines.launch
 
 
 @Composable
-fun SearchComposable(navController: NavController, searchViewModel: SearchViewModel, placesClient: PlacesClient) {
+fun SearchComposable(navController: NavController, searchViewModel: SearchViewModel, start: LatLng?) {
 
     val recentsState = searchViewModel.lastSearchLiveData.observeAsState()
     val recents = searchViewModel.historical
@@ -60,126 +61,121 @@ fun SearchComposable(navController: NavController, searchViewModel: SearchViewMo
 
     val coroutineScope = rememberCoroutineScope()
 
-    Scaffold(
-        backgroundColor = colorResource(id = R.color.app_green)
-    ) {
+    val startState: MutableState<LatLng?> = remember {
+        mutableStateOf(start)
+    }
 
-        Column() {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        imageVector = Icons.Filled.ArrowBack,
-                        contentDescription = null,
-                        tint = Color.White,
+
+    if(startState.value == null) {
+        Scaffold(
+            backgroundColor = colorResource(id = R.color.app_green)
+        ) {
+
+            Column() {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.padding(20.dp)
+                        )
+                    }
+                    Card(
+                        modifier = Modifier.padding(top = 20.dp, bottom = 20.dp, end = 20.dp),
+                        backgroundColor = Color.White,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        TextField(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester = focusRequester),
+                            colors = TextFieldDefaults.textFieldColors(
+                                backgroundColor = Color.White
+                            ),
+                            value = text.value,
+                            onValueChange = { newText ->
+                                text.value = newText
+
+                                coroutineScope.launch {
+                                    searchViewModel.getAutocomplete(newText)
+                                }
+                            },
+                            maxLines = 1,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    /* SEARCH ITNIERARY */
+                                    focusManager.clearFocus()
+                                }
+                            ),
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Filled.Search, contentDescription = null)
+                            },
+                            placeholder = {
+                                Text("D'ou vient-on ?")
+                            },
+                        )
+                    }
+                }
+
+                if(text.value.isNotEmpty()) {
+                    Text(
+                        text = "Résultats",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(20.dp)
                     )
-                }
-                Card(
-                    modifier = Modifier.padding(top = 20.dp, bottom = 20.dp, end = 20.dp),
-                    backgroundColor = Color.White,
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    TextField(
+                    Surface(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester = focusRequester),
-                        colors = TextFieldDefaults.textFieldColors(
-                            backgroundColor = Color.White
-                        ),
-                        value = text.value,
-                        onValueChange = { newText ->
-                            text.value = newText
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 20.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(color = Color.White)
+                            .fillMaxWidth(),
 
-                            coroutineScope.launch {
-                                searchViewModel.getAutocomplete(newText)
-                            }
-                        },
-                        maxLines = 1,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                /* SEARCH ITNIERARY */
-                                focusManager.clearFocus()
-                            }
-                        ),
-                        leadingIcon = {
-                            Icon(imageVector = Icons.Filled.Search, contentDescription = null)
-                        },
-                        placeholder = {
-                            Text("On va où ?")
-                        },
-                    )
-                }
-            }
+                        ) {
+                        LazyColumn(
+                        ) {
+                            items(autocomplete ?: listOf()) { value ->
+                                Column(
 
-            if(text.value.isNotEmpty()) {
-                Text(
-                    text = "Résultats",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(20.dp)
-                )
-                Surface(
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 20.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(color = Color.White)
-                        .fillMaxWidth(),
+                                    Modifier.clickable {
+                                        val destination = searchViewModel.getLocationFromAddress(navController.context, value.name)
 
-                    ) {
-                    LazyColumn(
-                    ) {
-                        items(autocomplete ?: listOf()) { value ->
-                            Column(
+                                        text.value = ""
 
-                                Modifier.clickable {
-                                    val destination = searchViewModel.getLocationFromAddress(navController.context, value.name)
+                                        startState.value = destination
 
-                                    val parameters = ParcelableSearch(
-                                        travelMode = TravelMode.transit,
-                                        startLatLng = ParcelableCoordinates(
-                                            lat = 48.797035,
-                                            long = 2.458125,
-                                        ),
-                                        endLatLng = ParcelableCoordinates(
-                                            lat = destination?.latitude ?: 0.0,
-                                            long = destination?.longitude ?: 0.0,
-                                        ),
-                                        destinationName = value.name
-                                    )
-                                    navController.currentBackStackEntry?.savedStateHandle?.set(
-                                        key = "parameters",
-                                        value = parameters
-                                    )
+                                        coroutineScope.launch {
+                                            searchViewModel.getAutocomplete("")
+                                        }
 
-                                    navController.navigate("results")
-
-                                }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .padding(10.dp)
-                                        .fillMaxWidth()
-                                        ,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    }
                                 ) {
-                                    Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
-                                    Text(text = value.name, modifier = Modifier
-                                        .padding(start = 5.dp)
-                                        .fillMaxWidth())
-                                }
-                                if(autocomplete!!.indexOf(value) != (autocomplete!!.size - 1)) {
-                                    Divider()
+                                    Row(
+                                        modifier = Modifier
+                                            .padding(10.dp)
+                                            .fillMaxWidth()
+                                        ,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
+                                        Text(text = value.name, modifier = Modifier
+                                            .padding(start = 5.dp)
+                                            .fillMaxWidth())
+                                    }
+                                    if(autocomplete!!.indexOf(value) != (autocomplete!!.size - 1)) {
+                                        Divider()
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-            }
+                }
 
                 Text(
                     text = "Récents",
@@ -195,7 +191,7 @@ fun SearchComposable(navController: NavController, searchViewModel: SearchViewMo
                         .background(color = Color.White)
                         .fillMaxWidth(),
 
-                ) {
+                    ) {
                     LazyColumn(
                     ) {
                         items(recents) { search ->
@@ -221,7 +217,173 @@ fun SearchComposable(navController: NavController, searchViewModel: SearchViewMo
                     }
                 }
             }
+        }
+    } else {
+        Scaffold(
+            backgroundColor = colorResource(id = R.color.app_green)
+        ) {
+
+            Column() {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.padding(20.dp)
+                        )
+                    }
+                    Card(
+                        modifier = Modifier.padding(top = 20.dp, bottom = 20.dp, end = 20.dp),
+                        backgroundColor = Color.White,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        TextField(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester = focusRequester),
+                            colors = TextFieldDefaults.textFieldColors(
+                                backgroundColor = Color.White
+                            ),
+                            value = text.value,
+                            onValueChange = { newText ->
+                                text.value = newText
+
+                                coroutineScope.launch {
+                                    searchViewModel.getAutocomplete(newText)
+                                }
+                            },
+                            maxLines = 1,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    /* SEARCH ITNIERARY */
+                                    focusManager.clearFocus()
+                                }
+                            ),
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Filled.Search, contentDescription = null)
+                            },
+                            placeholder = {
+                                Text("On va où ?")
+                            },
+                        )
+                    }
+                }
+
+                if(text.value.isNotEmpty()) {
+                    Text(
+                        text = "Résultats",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(20.dp)
+                    )
+                    Surface(
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 20.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(color = Color.White)
+                            .fillMaxWidth(),
+
+                        ) {
+                        LazyColumn(
+                        ) {
+                            items(autocomplete ?: listOf()) { value ->
+                                Column(
+
+                                    Modifier.clickable {
+                                        val destination = searchViewModel.getLocationFromAddress(navController.context, value.name)
+
+                                        val parameters = ParcelableSearch(
+                                            travelMode = TravelMode.transit,
+                                            startLatLng = ParcelableCoordinates(
+                                                lat = startState.value?.latitude ?: 0.0,
+                                                long = startState.value?.longitude ?: 0.0,
+                                            ),
+                                            endLatLng = ParcelableCoordinates(
+                                                lat = destination?.latitude ?: 0.0,
+                                                long = destination?.longitude ?: 0.0,
+                                            ),
+                                            destinationName = value.name
+                                        )
+                                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                                            key = "parameters",
+                                            value = parameters
+                                        )
+
+                                        navController.navigate("results")
+
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .padding(10.dp)
+                                            .fillMaxWidth()
+                                        ,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
+                                        Text(text = value.name, modifier = Modifier
+                                            .padding(start = 5.dp)
+                                            .fillMaxWidth())
+                                    }
+                                    if(autocomplete!!.indexOf(value) != (autocomplete!!.size - 1)) {
+                                        Divider()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                }
+
+                Text(
+                    text = "Récents",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(20.dp)
+                )
+                Surface(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 20.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(color = Color.White)
+                        .fillMaxWidth(),
+
+                    ) {
+                    LazyColumn(
+                    ) {
+                        items(recents) { search ->
+                            Column(
+                                modifier = Modifier.clickable {
+                                    navController.navigate("results?query=$search")
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .padding(10.dp)
+                                        .fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
+                                    Text(text = search.name, modifier = Modifier.padding(start = 5.dp))
+                                }
+                                if(recents.indexOf(search) != recents.size - 1) {
+                                    Divider()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+
+
     LaunchedEffect(Unit) {
         this.coroutineContext.job.invokeOnCompletion {
             focusRequester.requestFocus()

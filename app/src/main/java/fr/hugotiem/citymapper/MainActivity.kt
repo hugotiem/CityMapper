@@ -113,7 +113,21 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 composable("account") { MyAccountScreen(navController) }
-                composable("search") { SearchComposable(navController, searchViewModel, placesClient) }
+                composable("search?lat={lat}&lng={lng}",
+                    arguments = listOf(navArgument("lat") { defaultValue = "nan" },
+                        navArgument("lng") { defaultValue = "nan" })) { backStackEntry ->
+                    val args = backStackEntry.arguments
+                    var start: LatLng?
+                    if(args?.getString("lat") == "nan") {
+                        start = null
+                    } else {
+                        start = LatLng(
+                             args?.getString("lat")!!.toDouble(),
+                                args?.getString("lng")!!.toDouble()
+                        )
+                    }
+                    SearchComposable(navController, searchViewModel, start)
+                }
                 composable("results", ) {
 
                     val results = navController.previousBackStackEntry?.savedStateHandle?.get<ParcelableSearch>("parameters")
@@ -185,7 +199,9 @@ class MainActivity : ComponentActivity() {
     ) {
         CityMapperTheme {
 
-            lateinit var lastLocation: Location
+            val lastLocation: MutableState<Location?> = remember {
+                mutableStateOf(null)
+            }
 
             val markers by mapViewModel.markersLiveData.observeAsState()
 
@@ -204,7 +220,7 @@ class MainActivity : ComponentActivity() {
                 if (locationPermissionsState.allPermissionsGranted) {
                     fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                         if (location != null) {
-                            lastLocation = location
+                            lastLocation.value = location
                             val currentLatLng = LatLng(location.latitude, location.longitude)
                             position = CameraPosition.fromLatLngZoom(currentLatLng, 12f)
                         }
@@ -233,7 +249,7 @@ class MainActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(modifier = Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
-                            SimpleTextField(navController)
+                            SimpleTextField(navController, lastLocation)
                         }
                     }
                 },
@@ -254,7 +270,7 @@ class MainActivity : ComponentActivity() {
                                 mapProperties.value = MapProperties(isMyLocationEnabled = true)
                                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                                     if (location != null) {
-                                        lastLocation = location
+                                        lastLocation.value = location
                                         val currentLatLng =
                                             LatLng(location.latitude, location.longitude)
                                         coroutineScope.launch {
@@ -287,7 +303,7 @@ class MainActivity : ComponentActivity() {
                                 IconButton(onClick = {
                                     fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                                         if (location != null) {
-                                            lastLocation = location
+                                            lastLocation.value = location
                                             val currentLatLng =
                                                 LatLng(location.latitude, location.longitude)
                                             coroutineScope.launch {
@@ -313,13 +329,20 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterialApi::class)
     @Composable
-    fun SimpleTextField(navController: NavController) {
+    fun SimpleTextField(navController: NavController, lastLocation: MutableState<Location?>) {
         var text by remember { mutableStateOf(TextFieldValue("")) }
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
-                    navController.navigate("search")
+                    Log.d("LOCATION", lastLocation.value.toString())
+                    val path: String = if (lastLocation.value != null) {
+                        "?lat=${lastLocation.value?.latitude}&lng=${lastLocation.value?.longitude}"
+                    } else {
+                        ""
+                    }
+                    Log.d("PATH", path)
+                    navController.navigate("search$path")
                 }
         ) {
             val focusManager = LocalFocusManager.current

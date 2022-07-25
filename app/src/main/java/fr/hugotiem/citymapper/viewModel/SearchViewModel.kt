@@ -27,6 +27,7 @@ class SearchViewModel: ViewModel() {
     suspend fun getAutocomplete(search: String): Unit = coroutineScope {
         if(search.isEmpty() || search.isNullOrBlank()) {
             Log.d("ERROR", "Empty")
+            autocomplete = listOf()
         } else {
             launch {
                 var res = SearchProvider.service.getResults(search)

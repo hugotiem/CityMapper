@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalPermissionsApi::class)
 @Composable
-fun DetailsComposable(navController: NavController, selected: Leg, viewModel: ResultsViewModel? = null) {
+fun DetailsComposable(navController: NavController, selected: MutableState<Leg?>, viewModel: ResultsViewModel? = null) {
 
     val locationPermissionsState = rememberMultiplePermissionsState(
         listOf(
@@ -107,7 +107,7 @@ fun DetailsComposable(navController: NavController, selected: Leg, viewModel: Re
 
 
     Scaffold {
-        AppBar(navController = navController)
+        // AppBar(navController = navController)
         BottomSheetScaffold(
             sheetBackgroundColor = Color.Transparent,
             sheetElevation = 0.dp,
@@ -135,7 +135,7 @@ fun DetailsComposable(navController: NavController, selected: Leg, viewModel: Re
                             .background(color = Color.White),
                     ) {
                         //TransitResultItem(navController = navController, result = result)
-                        TransitResultItem(navController, result = selected, null)
+                        TransitResultItem(navController, result = selected.value!!, null)
                     }
                 }
 
@@ -150,7 +150,7 @@ fun DetailsComposable(navController: NavController, selected: Leg, viewModel: Re
                     cameraPositionState = cameraPositionState
 
                 ) {
-                    for (polyline in selected.steps) {
+                    for (polyline in selected.value!!.steps) {
                         val color: Color
                         if(polyline is TransitStep) {
                             val details = polyline.transitDetail
@@ -163,14 +163,14 @@ fun DetailsComposable(navController: NavController, selected: Leg, viewModel: Re
                     }
 
                 }
-                AppBar(navController = navController)
+                AppBar(navController = navController, selected)
             }
         }
     }
 }
 
 @Composable
-fun AppBar(navController: NavController) {
+fun AppBar(navController: NavController, selected: MutableState<Leg?>) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -178,7 +178,7 @@ fun AppBar(navController: NavController) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        IconButton(onClick = { navController.popBackStack() }, modifier = Modifier
+        IconButton(onClick = { selected.value = null }, modifier = Modifier
             .clip(shape = CircleShape)
             .background(color = Color.White)) {
             Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = null)

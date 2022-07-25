@@ -54,7 +54,7 @@ fun ResultsComposable(navController: NavController, resultsViewModel: ResultsVie
     }
 
     if(selectedState.value != null) {
-        DetailsComposable(navController = navController, selected = selectedState.value!!, resultsViewModel)
+        DetailsComposable(navController = navController, selected = selectedState, resultsViewModel)
     } else {
         Scaffold(
             backgroundColor = colorResource(id = R.color.app_green)
